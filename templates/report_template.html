@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ report.report_title | default('Test Validation Report') }}</title>
+    <style>
+        :root {
+            --passed: #22c55e;
+            --failed: #ef4444;
+            --partial: #f59e0b;
+            --info: #3b82f6;
+            --healed: #8b5cf6;
+            --bg: #0f172a;
+            --bg-card: #1e293b;
+            --bg-surface: #334155;
+            --border: #475569;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 24px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* ── Header ─────────────────────────────────── */
+        .header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 50%, #1a1a2e 100%);
+            border: 1px solid var(--border);
+            padding: 36px 40px;
+            border-radius: 16px;
+            margin-bottom: 28px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 400px;
+            height: 400px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%);
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .header .meta {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            display: flex;
+            gap: 28px;
+            flex-wrap: wrap;
+            position: relative;
+        }
+
+        .header .meta span { display: flex; align-items: center; gap: 6px; }
+
+        /* ── Status Badge ───────────────────────────── */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 24px;
+            border-radius: 24px;
+            font-weight: 700;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-top: 16px;
+            position: relative;
+        }
+
+        .status-PASSED { background: rgba(34,197,94,0.15); color: var(--passed); border: 1px solid rgba(34,197,94,0.3); }
+        .status-FAILED { background: rgba(239,68,68,0.15); color: var(--failed); border: 1px solid rgba(239,68,68,0.3); }
+        .status-PARTIALLY_PASSED { background: rgba(245,158,11,0.15); color: var(--partial); border: 1px solid rgba(245,158,11,0.3); }
+        .status-ERROR { background: rgba(239,68,68,0.15); color: var(--failed); border: 1px solid rgba(239,68,68,0.3); }
+        .status-UNKNOWN { background: rgba(100,116,139,0.15); color: var(--text-dim); border: 1px solid rgba(100,116,139,0.3); }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .status-PASSED .status-dot { background: var(--passed); }
+        .status-FAILED .status-dot { background: var(--failed); }
+        .status-PARTIALLY_PASSED .status-dot { background: var(--partial); }
+        .status-ERROR .status-dot { background: var(--failed); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ── Cards ──────────────────────────────────── */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 28px;
+            margin-bottom: 24px;
+        }
+
+        .card h2 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* ── Summary Stats ──────────────────────────── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(155px, 1fr));
+            gap: 14px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 18px 12px;
+            border-radius: 10px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            transition: transform 0.15s;
+        }
+
+        .stat-item:hover { transform: translateY(-2px); }
+
+        .stat-item .number {
+            font-size: 2rem;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .stat-item .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-top: 4px;
+        }
+
+        .stat-passed .number { color: var(--passed); }
+        .stat-failed .number { color: var(--failed); }
+        .stat-healed .number { color: var(--healed); }
+        .stat-time .number { color: var(--info); }
+
+        /* ── Gherkin Block ──────────────────────────── */
+        .gherkin-block {
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 20px 24px;
+            border-radius: 8px;
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.88rem;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            border: 1px solid #30363d;
+            line-height: 1.7;
+        }
+
+        /* ── Step Flow ──────────────────────────────── */
+        .step-flow {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .step-card {
+            display: grid;
+            grid-template-columns: 52px 1fr;
+            gap: 0;
+            position: relative;
+        }
+
+        /* Timeline column */
+        .step-timeline {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .step-number-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            z-index: 2;
+            flex-shrink: 0;
+            border: 2px solid;
+        }
+
+        .step-card.passed .step-number-circle {
+            background: rgba(34,197,94,0.15);
+            border-color: var(--passed);
+            color: var(--passed);
+        }
+
+        .step-card.failed .step-number-circle {
+            background: rgba(239,68,68,0.15);
+            border-color: var(--failed);
+            color: var(--failed);
+        }
+
+        .step-card.unknown .step-number-circle {
+            background: rgba(100,116,139,0.15);
+            border-color: var(--text-dim);
+            color: var(--text-dim);
+        }
+
+        .step-connector {
+            width: 2px;
+            flex-grow: 1;
+            min-height: 16px;
+        }
+
+        .step-card.passed .step-connector { background: rgba(34,197,94,0.25); }
+        .step-card.failed .step-connector { background: rgba(239,68,68,0.25); }
+        .step-card.unknown .step-connector { background: rgba(100,116,139,0.2); }
+
+        .step-card:last-child .step-connector { display: none; }
+
+        /* Content column */
+        .step-content {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 18px 20px;
+            margin-bottom: 12px;
+            margin-left: 12px;
+            transition: border-color 0.15s;
+        }
+
+        .step-card.passed .step-content { border-left: 3px solid var(--passed); }
+        .step-card.failed .step-content { border-left: 3px solid var(--failed); }
+
+        .step-card .step-content:hover {
+            border-color: var(--info);
+        }
+
+        .step-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            gap: 12px;
+        }
+
+        .step-action {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text);
+            flex: 1;
+        }
+
+        .step-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+
+        .step-badge.passed { background: rgba(34,197,94,0.15); color: var(--passed); }
+        .step-badge.failed { background: rgba(239,68,68,0.15); color: var(--failed); }
+        .step-badge.unknown { background: rgba(100,116,139,0.15); color: var(--text-dim); }
+
+        .step-meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .step-error {
+            background: rgba(239,68,68,0.08);
+            border: 1px solid rgba(239,68,68,0.2);
+            border-radius: 6px;
+            padding: 10px 14px;
+            font-size: 0.82rem;
+            color: #fca5a5;
+            margin-top: 10px;
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            word-break: break-word;
+        }
+
+        .step-healed {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.78rem;
+            color: var(--healed);
+            margin-top: 6px;
+        }
+
+        /* Screenshot inside step card */
+        .step-screenshot {
+            margin-top: 14px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            position: relative;
+        }
+
+        .step-screenshot img {
+            width: 100%;
+            display: block;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+
+        .step-screenshot img:hover { opacity: 0.92; }
+
+        .step-screenshot .ss-label {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .step-screenshot .ss-label.pass-label {
+            background: rgba(34,197,94,0.85);
+            color: #fff;
+        }
+
+        .step-screenshot .ss-label.fail-label {
+            background: rgba(239,68,68,0.85);
+            color: #fff;
+        }
+
+        /* ── Healing Events ─────────────────────────── */
+        .healing-event {
+            border-left: 3px solid var(--healed);
+            padding: 14px 18px;
+            margin-bottom: 14px;
+            background: rgba(139,92,246,0.06);
+            border-radius: 0 8px 8px 0;
+        }
+
+        .healing-event.success { border-left-color: var(--passed); background: rgba(34,197,94,0.06); }
+        .healing-event.failure { border-left-color: var(--failed); background: rgba(239,68,68,0.06); }
+
+        .healing-event h4 {
+            font-size: 0.92rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .healing-event .detail {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            line-height: 1.8;
+        }
+
+        .healing-event code {
+            background: rgba(255,255,255,0.06);
+            padding: 2px 7px;
+            border-radius: 4px;
+            font-size: 0.82em;
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+        }
+
+        /* ── Unresolved & Recommendations ───────────── */
+        .unresolved-item {
+            border-left: 3px solid var(--failed);
+            padding: 14px 18px;
+            margin-bottom: 12px;
+            background: rgba(239,68,68,0.06);
+            border-radius: 0 8px 8px 0;
+        }
+
+        .recommendations ul { list-style: none; padding: 0; }
+
+        .recommendations li {
+            padding: 10px 14px;
+            margin-bottom: 8px;
+            background: rgba(59,130,246,0.06);
+            border-radius: 8px;
+            font-size: 0.88rem;
+            border: 1px solid rgba(59,130,246,0.15);
+        }
+
+        .recommendations li::before { content: '\1F4A1  '; }
+
+        /* ── Screenshot Modal ───────────────────────── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            cursor: zoom-out;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal-overlay img {
+            max-width: 92vw;
+            max-height: 92vh;
+            border-radius: 8px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+        }
+
+        /* ── Footer ─────────────────────────────────── */
+        .footer {
+            text-align: center;
+            padding: 24px;
+            color: var(--text-dim);
+            font-size: 0.78rem;
+        }
+
+        /* ── Responsive ─────────────────────────────── */
+        @media (max-width: 640px) {
+            body { padding: 12px; }
+            .header { padding: 24px; }
+            .header h1 { font-size: 1.4rem; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .step-card { grid-template-columns: 40px 1fr; }
+            .step-number-circle { width: 32px; height: 32px; font-size: 0.75rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>{{ report.report_title | default('Test Validation Report') }}</h1>
+            <div class="meta">
+                <span>&#128336; {{ report.timestamp | default('N/A') }}</span>
+                <span>&#127760; {{ report.target_url | default('N/A') }}</span>
+            </div>
+            <div>
+                <span class="status-badge status-{{ report.overall_status | default('UNKNOWN') }}">
+                    <span class="status-dot"></span>
+                    {{ report.overall_status | default('UNKNOWN') }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="card">
+            <h2>&#128200; Summary</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="number">{{ report.summary.total_steps | default(0) }}</div>
+                    <div class="label">Total Steps</div>
+                </div>
+                <div class="stat-item stat-passed">
+                    <div class="number">{{ report.summary.passed_steps | default(0) }}</div>
+                    <div class="label">Passed</div>
+                </div>
+                <div class="stat-item stat-failed">
+                    <div class="number">{{ report.summary.failed_steps | default(0) }}</div>
+                    <div class="label">Failed</div>
+                </div>
+                <div class="stat-item stat-healed">
+                    <div class="number">{{ report.summary.healed_steps | default(0) }}</div>
+                    <div class="label">Healed</div>
+                </div>
+                <div class="stat-item">
+                    <div class="number">{{ report.summary.healing_attempts | default(0) }}</div>
+                    <div class="label">Heal Attempts</div>
+                </div>
+                <div class="stat-item stat-time">
+                    <div class="number">{{ "%.1f" | format(report.summary.total_execution_time_seconds | default(0) | float) }}s</div>
+                    <div class="label">Exec Time</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gherkin Test -->
+        <div class="card">
+            <h2>&#128203; Gherkin Test Case</h2>
+            <div class="gherkin-block">{{ report.gherkin_test | default('N/A') }}</div>
+        </div>
+
+        <!-- Step-by-Step Visual Flow -->
+        <div class="card">
+            <h2>&#128269; Step-by-Step Results</h2>
+            {% if report.steps_detail %}
+            <div class="step-flow">
+                {% for step in report.steps_detail %}
+                {% set step_status = step.status | default('UNKNOWN') %}
+                {% set status_class = 'passed' if step_status == 'PASSED' else ('failed' if step_status == 'FAILED' else 'unknown') %}
+                <div class="step-card {{ status_class }}">
+                    <!-- Timeline -->
+                    <div class="step-timeline">
+                        <div class="step-number-circle">{{ step.step_number | default(loop.index) }}</div>
+                        <div class="step-connector"></div>
+                    </div>
+                    <!-- Content -->
+                    <div class="step-content">
+                        <div class="step-header">
+                            <span class="step-action">{{ step.action | default('Step ' ~ loop.index) }}</span>
+                            <span class="step-badge {{ status_class }}">{{ step_status }}</span>
+                        </div>
+                        {% if step.target %}
+                        <div class="step-meta">Target: {{ step.target }}</div>
+                        {% endif %}
+                        {% if step.timestamp %}
+                        <div class="step-meta">{{ step.timestamp }}</div>
+                        {% endif %}
+                        {% if step.healing_applied %}
+                        <div class="step-healed">&#9889; Self-healed</div>
+                        {% endif %}
+                        {% if step.error %}
+                        <div class="step-error">{{ step.error }}</div>
+                        {% endif %}
+                        {% if step.notes %}
+                        <div class="step-meta" style="margin-top:6px">{{ step.notes }}</div>
+                        {% endif %}
+                        {% if step.screenshot_base64 %}
+                        <div class="step-screenshot">
+                            <span class="ss-label {{ 'pass-label' if step_status == 'PASSED' else 'fail-label' }}">
+                                {{ step_status }}
+                            </span>
+                            <img src="{{ step.screenshot_base64 }}" alt="Step {{ step.step_number | default(loop.index) }} screenshot" onclick="openModal(this.src)" loading="lazy">
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="color:var(--text-muted)">No step details available.</p>
+            {% endif %}
+        </div>
+
+        <!-- Healing Events -->
+        {% if report.healing_events %}
+        <div class="card">
+            <h2>&#128295; Self-Healing Events</h2>
+            {% for event in report.healing_events %}
+            <div class="healing-event {{ 'success' if event.success else 'failure' }}">
+                <h4>
+                    Step {{ event.step_number | default('?') }}
+                    &mdash;
+                    {% if event.success %}
+                        &#9989; Healed Successfully
+                    {% else %}
+                        &#10060; Healing Failed
+                    {% endif %}
+                </h4>
+                <div class="detail">
+                    <strong>Original:</strong> <code>{{ event.original_locator | default('N/A') }}</code><br>
+                    {% if event.new_locator %}
+                    <strong>New:</strong> <code>{{ event.new_locator }}</code><br>
+                    {% endif %}
+                    <strong>Attempts:</strong> {{ event.attempts | default(0) }}<br>
+                    {% if event.reasoning %}
+                    <strong>Reasoning:</strong> {{ event.reasoning }}
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Unresolved Failures -->
+        {% if report.unresolved_failures %}
+        <div class="card">
+            <h2>&#10060; Unresolved Failures</h2>
+            {% for fail in report.unresolved_failures %}
+            <div class="unresolved-item">
+                <strong>Step {{ fail.step_number | default('?') }}:</strong>
+                {{ fail.description | default('Unknown failure') }}
+                {% if fail.suggested_fix %}
+                <br><small style="color:var(--text-muted)">&#128161; <em>{{ fail.suggested_fix }}</em></small>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Recommendations -->
+        {% if report.recommendations %}
+        <div class="card recommendations">
+            <h2>&#128161; Recommendations</h2>
+            <ul>
+                {% for rec in report.recommendations %}
+                <li>{{ rec }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Footer -->
+        <div class="footer">
+            Generated by Automated Test Validation System &middot; {{ report.timestamp | default('') }}
+        </div>
+    </div>
+
+    <!-- Screenshot Modal -->
+    <div class="modal-overlay" id="screenshotModal" onclick="closeModal()">
+        <img id="modalImg" src="" alt="Screenshot">
+    </div>
+
+    <script>
+        function openModal(src) {
+            var modal = document.getElementById('screenshotModal');
+            document.getElementById('modalImg').src = src;
+            modal.classList.add('active');
+        }
+        function closeModal() {
+            document.getElementById('screenshotModal').classList.remove('active');
+        }
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeModal();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+# ──────────────────────────────────────────────
+# Automated Test Validation System — .gitignore
+# ──────────────────────────────────────────────
+
+# ── Environment / secrets ────────────────────
+.env
+
+# ── Python ───────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual environment ─────────────────────
+.venv/
+venv/
+env/
+
+# ── IDE / editor ─────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS files ─────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Outputs (generated at runtime) ──────────
+outputs/screenshots/success/*
+outputs/screenshots/failure/*
+outputs/screenshots/*.png
+outputs/generated_scripts/*
+outputs/reports/*
+outputs/outputs/
+
+# Keep the directory structure via .gitkeep
+!outputs/screenshots/success/.gitkeep
+!outputs/screenshots/failure/.gitkeep
+!outputs/generated_scripts/.gitkeep
+!outputs/reports/.gitkeep
+!outputs/screenshots/.gitkeep
+
+# ── WebDriver Manager cache ─────────────────
+.wdm/
+
+# ── Logs ─────────────────────────────────────
+*.log
+outputs/*.log
+
+# ── Pytest ───────────────────────────────────
+.pytest_cache/
+htmlcov/
+.coverage
