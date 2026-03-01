@@ -1,9 +1,20 @@
-"""Popup / overlay handler utility.
+"""Popup / overlay handler utility — performance-optimised.
 
-Injects JavaScript into the browser to automatically dismiss common
-overlays, cookie banners, GDPR notices, newsletter popups, etc.
-Also provides a Python-level dismisser that clicks known close buttons
-and a smart catch-all that finds overlay buttons by visible text.
+Uses a **two-tier** strategy so the handler stays dormant when no popup
+is present and avoids unnecessary DOM scanning on every action.
+
+Tier 1 — Persistent JS observer (browser-side, zero Python round-trips):
+    Injected **once** at driver creation via Chrome DevTools Protocol
+    (``Page.addScriptToEvaluateOnNewDocument``).  Runs automatically on
+    every new document.  A debounced ``MutationObserver`` with
+    ``requestIdleCallback`` sweeps dismiss-buttons only when new DOM
+    nodes appear — not on every attribute change.
+
+Tier 2 — Gated Python fallback (for stubborn popups):
+    ``handle_popups()`` first runs a **fast JS overlay-detection gate**
+    (~2–5 ms).  Only when an overlay is actually visible does it execute
+    the more expensive Python-level selector iteration.  Time-debounced
+    at 1 second so rapid consecutive calls are skipped.
 """
 
 from __future__ import annotations
@@ -11,7 +22,7 @@ from __future__ import annotations
 import logging
 import re
 import time
-from typing import List, Optional
+from typing import List
 
 from selenium.common.exceptions import (
     NoAlertPresentException,
@@ -25,167 +36,219 @@ from selenium.webdriver.remote.webelement import WebElement
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# JavaScript auto-dismisser
-# ---------------------------------------------------------------------------
+# ── Debounce state ──────────────────────────────────────────────────
+_last_full_sweep: float = 0.0
+_DEBOUNCE_SEC: float = 1.0   # skip repeated full sweeps within 1 s
+
+# ═══════════════════════════════════════════════════════════════════
+# Tier 1 — Persistent JavaScript observer
+# ═══════════════════════════════════════════════════════════════════
+# Kept as POPUP_DISMISSER_JS for backward compatibility (tests import it).
 
 POPUP_DISMISSER_JS = r"""
 (function() {
     'use strict';
+    if (window.__popupDismisserActive) return;
+    window.__popupDismisserActive = true;
 
-    // Common selectors for cookie / GDPR / overlay close buttons
-    const CLOSE_SELECTORS = [
-        // Cookie consent
-        '[id*="cookie"] button', '[class*="cookie"] button',
-        '[id*="consent"] button', '[class*="consent"] button',
-        '[id*="gdpr"] button', '[class*="gdpr"] button',
-        '[aria-label*="cookie" i]', '[aria-label*="consent" i]',
-        '[aria-label*="close" i]', '[aria-label*="dismiss" i]',
+    var SELS = [
+        '[id*="cookie"] button','[class*="cookie"] button',
+        '[id*="consent"] button','[class*="consent"] button',
+        '[id*="gdpr"] button','[class*="gdpr"] button',
+        '[aria-label*="cookie" i]','[aria-label*="consent" i]',
+        '[aria-label*="close" i]','[aria-label*="dismiss" i]',
         '[aria-label*="accept" i]',
-        // Generic close / dismiss
-        'button[class*="close"]', 'button[class*="dismiss"]',
-        'button[class*="accept"]', 'a[class*="close"]',
-        '.modal .close', '.overlay .close',
-        '[data-dismiss="modal"]', '[data-action="close"]',
-        // Common cookie-consent libraries
+        'button[class*="close"]','button[class*="dismiss"]',
+        'button[class*="accept"]','a[class*="close"]',
+        '.modal .close','.overlay .close',
+        '[data-dismiss="modal"]','[data-action="close"]',
         '#onetrust-accept-btn-handler',
-        '.cc-btn.cc-dismiss', '.cc-btn.cc-allow',
+        '.cc-btn.cc-dismiss','.cc-btn.cc-allow',
         '#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll',
-        '.cky-btn-accept', '#accept-cookies',
-        '#cookie-accept', '.cookie-accept',
+        '.cky-btn-accept','#accept-cookies',
+        '#cookie-accept','.cookie-accept',
         'button[data-cookiefirst-action="accept"]',
         '.js-cookie-consent-agree',
-        // Newsletter popups
-        '.popup-close', '.newsletter-close',
+        '.popup-close','.newsletter-close',
         '[class*="popup"] [class*="close"]',
         '[class*="newsletter"] button[class*="close"]',
-        '.modal-close', '.modal__close',
+        '.modal-close','.modal__close'
     ];
 
-    // ---------- smart catch-all (JS side) ----------
-    const DISMISS_WORDS = /^(ok|close|accept|agree|dismiss|allow|got it|continue|skip|no thanks|not now|i agree|i accept|allow all|accept all|reject all|deny|later|maybe later|remind me later)$/i;
+    var DW = /^(ok|close|accept|agree|dismiss|allow|got it|continue|skip|no thanks|not now|i agree|i accept|allow all|accept all|reject all|deny|later|maybe later|remind me later)$/i;
 
-    function isInsideOverlay(el) {
-        var node = el;
-        while (node && node !== document.body) {
+    function isOvl(el) {
+        var n = el;
+        while (n && n !== document.body) {
             try {
-                var cs = window.getComputedStyle(node);
-                if (cs.position === 'fixed' || cs.position === 'sticky') return true;
-                var z = parseInt(cs.zIndex, 10);
-                if (z > 999) return true;
-                if (node.getAttribute('role') === 'dialog' ||
-                    node.getAttribute('aria-modal') === 'true') return true;
+                var c = getComputedStyle(n);
+                if (c.position === 'fixed' || c.position === 'sticky') return true;
+                if (parseInt(c.zIndex, 10) > 999) return true;
+                if (n.getAttribute('role') === 'dialog' ||
+                    n.getAttribute('aria-modal') === 'true') return true;
             } catch(e) {}
-            node = node.parentElement;
+            n = n.parentElement;
         }
         return false;
     }
 
-    function smartDismiss() {
-        var clickables = document.querySelectorAll('button, a, [role="button"]');
-        for (var i = 0; i < clickables.length; i++) {
-            try {
-                var el = clickables[i];
-                if (el.offsetParent === null) continue;
-                var txt = (el.innerText || el.textContent || '').trim();
-                if (txt.length > 40) continue;
-                if (DISMISS_WORDS.test(txt) && isInsideOverlay(el)) {
-                    el.click();
-                }
-            } catch(e) {}
-        }
-    }
-
-    function clickMatching(selectors) {
-        for (const sel of selectors) {
-            try {
-                const els = document.querySelectorAll(sel);
-                for (const el of els) {
-                    if (el.offsetParent !== null) {
-                        el.click();
-                    }
-                }
-            } catch(e) {}
-        }
-    }
-
-    // Remove common overlay / backdrop elements
-    function removeOverlays() {
-        const overlaySelectors = [
-            '.modal-backdrop', '.overlay-backdrop',
-            '[class*="overlay"]', '[class*="backdrop"]',
-            '[id*="overlay"]', '[id*="backdrop"]',
-        ];
-        for (const sel of overlaySelectors) {
-            try {
-                const els = document.querySelectorAll(sel);
-                for (const el of els) {
-                    if (el.children.length === 0 || el.classList.contains('backdrop')) {
-                        el.style.display = 'none';
-                    }
-                }
-            } catch(e) {}
-        }
-    }
-
     function sweep() {
-        clickMatching(CLOSE_SELECTORS);
-        removeOverlays();
-        smartDismiss();
+        for (var i = 0; i < SELS.length; i++) {
+            try {
+                var els = document.querySelectorAll(SELS[i]);
+                for (var j = 0; j < els.length; j++) {
+                    if (els[j].offsetParent !== null) els[j].click();
+                }
+            } catch(e) {}
+        }
+        var bs = document.querySelectorAll('button, a, [role="button"]');
+        for (var k = 0; k < bs.length; k++) {
+            try {
+                var b = bs[k];
+                if (b.offsetParent === null) continue;
+                var t = (b.innerText || b.textContent || '').trim();
+                if (t.length > 40) continue;
+                if (DW.test(t) && isOvl(b)) b.click();
+            } catch(e) {}
+        }
     }
 
-    // Run immediately + delayed sweeps
+    // Initial sweep + single delayed retry for late-rendering popups
     sweep();
-    setTimeout(sweep, 1500);
-    setTimeout(sweep, 3000);
-    setTimeout(sweep, 5000);
+    setTimeout(sweep, 2000);
 
-    // MutationObserver for late popups
-    var observer = new MutationObserver(function() { sweep(); });
+    // Debounced MutationObserver — fires ONLY when new nodes are added
+    var tid = null;
+    var sched = window.requestIdleCallback || function(f) { return setTimeout(f, 150); };
+    var obs = new MutationObserver(function(muts) {
+        for (var m = 0; m < muts.length; m++) {
+            if (muts[m].addedNodes.length > 0) {
+                if (!tid) { tid = sched(function() { tid = null; sweep(); }); }
+                return;
+            }
+        }
+    });
     if (document.body) {
-        observer.observe(document.body, { childList: true, subtree: true });
+        obs.observe(document.body, { childList: true, subtree: true });
     }
-    setTimeout(function() { observer.disconnect(); }, 30000);
+    // Auto-disconnect after 30 s to free resources
+    setTimeout(function() { obs.disconnect(); window.__popupDismisserActive = false; }, 30000);
+})();
+"""
+
+# Convenience alias
+PERSISTENT_DISMISSER_JS = POPUP_DISMISSER_JS
+
+
+# ── Fast overlay-detection gate (~2–5 ms) ───────────────────────────
+# Returns true ONLY if a popup-like overlay is currently visible.
+
+_OVERLAY_DETECT_JS = """
+return (function() {
+    var q = '[role="dialog"]:not([hidden]),[aria-modal="true"]:not([hidden]),' +
+            '#onetrust-banner-sdk,#CybotCookiebotDialog,.cky-consent-container';
+    var hit = document.querySelector(q);
+    if (hit) {
+        try {
+            var s = getComputedStyle(hit);
+            if (s.display !== 'none' && s.visibility !== 'hidden') return true;
+        } catch(e) {}
+    }
+    var cands = document.querySelectorAll(
+        '[class*="modal"],[class*="popup"],[class*="overlay"],' +
+        '[class*="cookie"],[class*="consent"],[class*="gdpr"]');
+    for (var i = 0; i < cands.length; i++) {
+        try {
+            var el = cands[i], cs = getComputedStyle(el);
+            if (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0') continue;
+            if ((cs.position === 'fixed' || cs.position === 'sticky' ||
+                 parseInt(cs.zIndex, 10) > 999) && el.offsetWidth > 0 && el.offsetHeight > 0)
+                return true;
+        } catch(e) {}
+    }
+    return false;
 })();
 """
 
 
-def inject_popup_dismisser(driver: WebDriver) -> None:
-    """Inject the JavaScript popup dismisser into the current page."""
-    try:
-        driver.execute_script(POPUP_DISMISSER_JS)
-        logger.debug("Popup dismisser JS injected")
-    except Exception as exc:
-        logger.warning("Failed to inject popup dismisser JS: %s", exc)
+# ═══════════════════════════════════════════════════════════════════
+# Tier 1 helpers
+# ═══════════════════════════════════════════════════════════════════
 
+def inject_persistent_dismisser(driver: WebDriver) -> None:
+    """Install the JS popup dismisser to auto-run on every new page load.
+
+    Call this **once** during driver creation.  Uses Chrome DevTools
+    Protocol so the script persists across navigations without
+    re-injection.
+    """
+    try:
+        driver.execute_cdp_cmd(
+            "Page.addScriptToEvaluateOnNewDocument",
+            {"source": PERSISTENT_DISMISSER_JS},
+        )
+        logger.info("Persistent popup dismisser installed via CDP")
+    except Exception as exc:
+        logger.warning("CDP popup-dismisser injection failed: %s", exc)
+
+
+def _ensure_js_dismisser(driver: WebDriver) -> None:
+    """Inject the JS dismisser if not already active on this page.
+
+    Fallback for environments where CDP injection is unavailable.
+    Costs one tiny ``execute_script`` round-trip (~1 ms).
+    """
+    try:
+        if not driver.execute_script("return !!window.__popupDismisserActive;"):
+            driver.execute_script(PERSISTENT_DISMISSER_JS)
+    except Exception:
+        pass
+
+
+def _has_visible_overlay(driver: WebDriver) -> bool:
+    """Fast JS check — returns True only if a popup-like overlay is
+    currently visible.  Typically completes in 2–5 ms."""
+    try:
+        return bool(driver.execute_script(_OVERLAY_DETECT_JS))
+    except Exception:
+        return False
+
+
+# Legacy helper — kept for backward compat but now just delegates
+def inject_popup_dismisser(driver: WebDriver) -> None:
+    """Inject the JavaScript popup dismisser into the current page.
+
+    .. deprecated:: Use :func:`inject_persistent_dismisser` (once at
+       driver creation) instead.
+    """
+    _ensure_js_dismisser(driver)
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Tier 2 — Python-level fallback (only runs when overlay detected)
+# ═══════════════════════════════════════════════════════════════════
 
 # ---------------------------------------------------------------------------
 # Native browser dialog handler
 # ---------------------------------------------------------------------------
 
 def dismiss_browser_dialogs(driver: WebDriver) -> int:
-    """Accept any pending native Chrome alert / confirm / prompt dialogs.
+    """Accept any pending native Chrome alert / confirm / prompt.
 
-    Returns the number of alerts dismissed.
+    Single attempt — returns 0 or 1.
     """
-    dismissed = 0
-    # Try up to 3 times in case stacked alerts exist
-    for _ in range(3):
-        try:
-            alert = driver.switch_to.alert
-            alert_text = alert.text
-            alert.accept()
-            dismissed += 1
-            logger.info("Dismissed native alert: %s", alert_text[:120])
-        except NoAlertPresentException:
-            break
-        except WebDriverException:
-            break
-    return dismissed
+    try:
+        alert = driver.switch_to.alert
+        alert_text = alert.text
+        alert.accept()
+        logger.info("Dismissed native alert: %s", alert_text[:120])
+        return 1
+    except (NoAlertPresentException, WebDriverException):
+        return 0
 
 
 # ---------------------------------------------------------------------------
-# Python-level overlay dismisser (hardcoded selectors)
+# Hardcoded-selector Python dismisser
 # ---------------------------------------------------------------------------
 
 _CLOSE_BUTTON_SELECTORS = [
@@ -205,7 +268,7 @@ _CLOSE_BUTTON_SELECTORS = [
 
 
 def dismiss_popups_selenium(driver: WebDriver) -> int:
-    """Click common close/accept buttons via hardcoded selectors.
+    """Click known close/accept buttons via hardcoded selectors.
 
     Returns the number of elements successfully clicked.
     """
@@ -219,7 +282,6 @@ def dismiss_popups_selenium(driver: WebDriver) -> int:
                         el.click()
                         dismissed += 1
                         logger.info("Dismissed popup via %s = %s", by, value)
-                        time.sleep(0.25)
                     except Exception:
                         pass
         except Exception:
@@ -228,7 +290,7 @@ def dismiss_popups_selenium(driver: WebDriver) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Smart catch-all: find overlay buttons by visible text (Python side)
+# Smart text-matching overlay dismisser
 # ---------------------------------------------------------------------------
 
 _DISMISS_WORDS: re.Pattern = re.compile(
@@ -240,22 +302,17 @@ _DISMISS_WORDS: re.Pattern = re.compile(
 
 
 def _is_inside_overlay(driver: WebDriver, el: WebElement) -> bool:
-    """Return True if *el* or one of its ancestors looks like an overlay.
-
-    Checks for ``position: fixed/sticky``, ``z-index > 999``,
-    ``role=dialog``, or ``aria-modal=true``.
-    """
+    """Return True if *el* or an ancestor looks like an overlay."""
     try:
         return driver.execute_script("""
-            var node = arguments[0];
-            while (node && node !== document.body) {
-                var cs = window.getComputedStyle(node);
-                if (cs.position === 'fixed' || cs.position === 'sticky') return true;
-                var z = parseInt(cs.zIndex, 10);
-                if (z > 999) return true;
-                if (node.getAttribute('role') === 'dialog' ||
-                    node.getAttribute('aria-modal') === 'true') return true;
-                node = node.parentElement;
+            var n = arguments[0];
+            while (n && n !== document.body) {
+                var c = getComputedStyle(n);
+                if (c.position === 'fixed' || c.position === 'sticky') return true;
+                if (parseInt(c.zIndex, 10) > 999) return true;
+                if (n.getAttribute('role') === 'dialog' ||
+                    n.getAttribute('aria-modal') === 'true') return true;
+                n = n.parentElement;
             }
             return false;
         """, el)
@@ -264,8 +321,8 @@ def _is_inside_overlay(driver: WebDriver, el: WebElement) -> bool:
 
 
 def dismiss_smart_overlay_buttons(driver: WebDriver) -> int:
-    """Find ALL visible buttons/links whose text matches common dismiss
-    words AND that live inside a modal/overlay, then click them.
+    """Find visible buttons whose text matches dismiss words AND that
+    live inside a modal/overlay, then click them.
 
     Returns the number of elements clicked.
     """
@@ -291,7 +348,6 @@ def dismiss_smart_overlay_buttons(driver: WebDriver) -> int:
             el.click()
             dismissed += 1
             logger.info("Smart-dismissed overlay button: '%s'", text)
-            time.sleep(0.25)
         except (StaleElementReferenceException, NoSuchElementException):
             continue
         except Exception:
@@ -300,21 +356,48 @@ def dismiss_smart_overlay_buttons(driver: WebDriver) -> int:
     return dismissed
 
 
-# ---------------------------------------------------------------------------
+# ═══════════════════════════════════════════════════════════════════
 # Public API
-# ---------------------------------------------------------------------------
+# ═══════════════════════════════════════════════════════════════════
 
-def handle_popups(driver: WebDriver) -> None:
-    """Full popup handling:
+def handle_popups_light(driver: WebDriver) -> None:
+    """Lightweight handler for hot-path hooks (get / click / submit).
 
-    1. Dismiss any native browser alert/confirm/prompt dialogs.
-    2. Inject the JavaScript auto-dismisser (hardcoded selectors +
-       smart text-matching inside overlays).
-    3. Click known close buttons via Selenium (hardcoded selectors).
-    4. Smart catch-all: find visible overlay buttons by text and click.
+    Cost: one native-alert check + one tiny JS round-trip (~1–3 ms).
+    No DOM scanning, no selector iteration.
     """
     dismiss_browser_dialogs(driver)
-    inject_popup_dismisser(driver)
-    time.sleep(0.5)
+    _ensure_js_dismisser(driver)
+
+
+def handle_popups(driver: WebDriver) -> None:
+    """Full popup handling — **debounced** and **gated**.
+
+    1. Dismiss native browser alerts (cheap, ~0 ms if none).
+    2. Ensure the persistent JS dismisser is running (cheap, ~1 ms).
+    3. Run fast JS overlay-detection gate (~2–5 ms).
+    4. **Only if an overlay is actually visible** → run expensive
+       Python-level selector iteration.
+
+    Debounced at 1 second — repeated calls within the window are
+    no-ops.
+    """
+    global _last_full_sweep
+    now = time.monotonic()
+    if now - _last_full_sweep < _DEBOUNCE_SEC:
+        return
+    _last_full_sweep = now
+
+    # Cheap: native alert
+    dismiss_browser_dialogs(driver)
+
+    # Cheap: ensure JS observer is alive
+    _ensure_js_dismisser(driver)
+
+    # Gate: skip expensive Python work if no overlay is visible
+    if not _has_visible_overlay(driver):
+        return
+
+    logger.debug("Overlay detected — running Python-level popup dismissal")
     dismiss_popups_selenium(driver)
     dismiss_smart_overlay_buttons(driver)

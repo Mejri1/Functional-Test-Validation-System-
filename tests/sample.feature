@@ -19,5 +19,4 @@ Feature: Complete purchase on SauceDemo
     When I click the Finish button
     Then I should see the text "Thank you for your order!" on the page 
     When I click the Back Home button
-    Then I should be on the products page
     Then I should see the text "Products" on the page

@@ -19,25 +19,30 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 
-from tools.popup_handler import handle_popups
+from tools.popup_handler import (
+    handle_popups,
+    handle_popups_light,
+    inject_persistent_dismisser,
+)
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Driver wrapper — auto-call handle_popups after navigate / click / submit
+# Driver wrapper — lightweight popup hooks after navigate / click / submit
 # ---------------------------------------------------------------------------
 
 def _install_popup_hooks(driver: webdriver.Chrome) -> webdriver.Chrome:
-    """Monkey-patch *driver* so that ``handle_popups`` runs automatically
+    """Monkey-patch *driver* so that a **lightweight** popup check runs
     after every action that may trigger a new page or overlay:
 
-    * ``driver.get(url)``
-    * ``element.click()``
-    * ``element.submit()``
+    * ``driver.get(url)`` — ensure JS dismisser + alert check (~1–3 ms)
+    * ``element.click()`` — alert check only (~0–1 ms)
+    * ``element.submit()`` — alert check only (~0–1 ms)
 
-    The patching is transparent — callers use the driver as usual.
+    The heavy JS observer (installed via CDP at driver creation) handles
+    actual popup dismissal in the background.  These hooks only ensure
+    the observer is alive and dismiss native browser alerts.
     """
-    import types
     from selenium.webdriver.remote.webelement import WebElement
 
     # ---- driver.get() ----
@@ -46,9 +51,9 @@ def _install_popup_hooks(driver: webdriver.Chrome) -> webdriver.Chrome:
     def _get_with_popups(url: str) -> None:  # type: ignore[override]
         _original_get(url)
         try:
-            handle_popups(driver)
+            handle_popups_light(driver)
         except Exception as exc:
-            logger.debug("handle_popups after get() failed: %s", exc)
+            logger.debug("handle_popups_light after get() failed: %s", exc)
 
     driver.get = _get_with_popups  # type: ignore[assignment]
 
@@ -67,16 +72,16 @@ def _install_popup_hooks(driver: webdriver.Chrome) -> webdriver.Chrome:
         def _click_with_popups() -> None:
             _orig_click()
             try:
-                handle_popups(driver)
+                handle_popups_light(driver)
             except Exception as exc:
-                logger.debug("handle_popups after click() failed: %s", exc)
+                logger.debug("handle_popups_light after click() failed: %s", exc)
 
         def _submit_with_popups() -> None:
             _orig_submit()
             try:
-                handle_popups(driver)
+                handle_popups_light(driver)
             except Exception as exc:
-                logger.debug("handle_popups after submit() failed: %s", exc)
+                logger.debug("handle_popups_light after submit() failed: %s", exc)
 
         el.click = _click_with_popups     # type: ignore[assignment]
         el.submit = _submit_with_popups   # type: ignore[assignment]
@@ -173,7 +178,11 @@ def create_chrome_driver(headless: bool = True) -> webdriver.Chrome:
 
     logger.info("Chrome WebDriver created (headless=%s)", headless)
 
-    # Wrap the driver so handle_popups runs after get / click / submit
+    # Install persistent JS popup dismisser (runs on every new page load
+    # via CDP — no per-action overhead)
+    inject_persistent_dismisser(driver)
+
+    # Wrap the driver so lightweight popup check runs after get / click / submit
     driver = _install_popup_hooks(driver)
 
     return driver
