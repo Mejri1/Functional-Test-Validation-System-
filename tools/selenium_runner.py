@@ -153,7 +153,13 @@ def create_chrome_driver(headless: bool = True) -> webdriver.Chrome:
     options.add_argument("--disable-features=PasswordLeakDetection")
     options.add_argument("--password-store=basic")
     options.add_argument("--use-mock-keychain")
-
+    options.add_experimental_option("prefs", {
+    "credentials_enable_service": False,
+    "profile.password_manager_enabled": False,
+    "profile.password_manager_leak_detection": False,
+    "safebrowsing.enabled": False,
+    "safebrowsing_without_ping.enabled": False,
+    })
     prefs = {
         "credentials_enable_service": False,
         "profile.password_manager_enabled": False,

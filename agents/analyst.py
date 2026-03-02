@@ -1,7 +1,7 @@
 """Analyst Agent — parses Gherkin test cases into structured action plans.
 
-This agent receives a raw Gherkin test and a URL, then uses the Groq LLM
-to produce a JSON array of UI actions that Selenium can execute.
+This agent receives a raw Gherkin test and a URL, then uses the configured
+LLM provider to produce a JSON array of UI actions that Selenium can execute.
 """
 
 from __future__ import annotations
@@ -12,8 +12,9 @@ import os
 import re
 from typing import Any, Dict, List
 
-from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
+
+from llm.factory import get_llm
 
 logger = logging.getLogger(__name__)
 
@@ -79,11 +80,7 @@ def run_analyst(state: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     try:
-        llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
-            temperature=0.1,
-            max_tokens=4096,
-        )
+        llm = get_llm(temperature=0.1, max_tokens=4096)
 
         messages = [
             SystemMessage(content=system_prompt),

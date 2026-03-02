@@ -1,7 +1,11 @@
 # Core LLM / Agent framework
 langchain-groq>=0.1.9
+langchain-openai>=0.1.0
 langchain-core>=0.2.0
 langgraph>=0.2.0
+
+# Cerebras cloud SDK (needed for cerebras provider)
+cerebras-cloud-sdk>=1.0.0
 
 # Browser automation
 selenium>=4.15.0

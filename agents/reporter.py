@@ -14,8 +14,9 @@ from datetime import datetime
 from typing import Any, Dict
 
 from jinja2 import Environment, FileSystemLoader
-from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
+
+from llm.factory import get_llm
 
 logger = logging.getLogger(__name__)
 
@@ -192,11 +193,7 @@ def run_reporter(state: Dict[str, Any]) -> Dict[str, Any]:
     report_data = None
     try:
         system_prompt = _load_system_prompt()
-        llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
-            temperature=0.1,
-            max_tokens=4096,
-        )
+        llm = get_llm(temperature=0.1, max_tokens=4096)
         messages = [
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_message),

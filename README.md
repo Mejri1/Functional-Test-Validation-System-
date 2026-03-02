@@ -32,7 +32,7 @@ START → Analyst Agent → Script Writer Agent → Executor Agent
 
 ## Tech Stack
 
-- **LLM**: Groq API (LLaMA 3.3 70B)
+- **LLM**: Multi-provider — Groq, LM Studio (local), or Cerebras (switchable via `.env`)
 - **Agent Framework**: LangGraph + LangChain
 - **Browser Automation**: Selenium 4 + ChromeDriver (via webdriver-manager)
 - **DOM Parsing**: BeautifulSoup4
@@ -45,7 +45,10 @@ START → Analyst Agent → Script Writer Agent → Executor Agent
 
 - Python 3.10+
 - Google Chrome browser installed
-- A Groq API key (free at [console.groq.com/keys](https://console.groq.com/keys))
+- An LLM API key — one of:
+  - Groq (free at [console.groq.com/keys](https://console.groq.com/keys))
+  - Cerebras ([cerebras.ai](https://cerebras.ai/))
+  - LM Studio running locally (no key needed)
 
 ### 2. Install Dependencies
 
@@ -60,8 +63,8 @@ pip install -r requirements.txt
 # Copy the example env file
 cp .env.example .env
 
-# Edit .env and add your Groq API key
-# GROQ_API_KEY=gsk_your_actual_key_here
+# Edit .env — set LLM_PROVIDER and the matching API key
+# See "Switching LLM Provider" below for details
 ```
 
 ### 4. Verify Installation
@@ -136,6 +139,8 @@ test-validation-system/
 │   ├── executor.py           # Runs script in Chrome
 │   ├── self_healer.py        # DOM analysis & locator healing
 │   └── reporter.py           # JSON + HTML report generation
+├── llm/                      # LLM provider abstraction
+│   └── factory.py            # Universal get_llm() factory
 ├── graph/                    # LangGraph workflow
 │   ├── state.py              # Shared TypedDict state
 │   └── workflow.py           # Graph definition & routing
@@ -187,6 +192,42 @@ When a Selenium locator fails (element not found, timeout, etc.):
 4. The best locator is patched into the script
 5. The Executor re-runs the test (up to 3 retries per failed locator)
 
+## Switching LLM Provider
+
+Edit your `.env` file to swap providers with **zero code changes**.
+
+### Groq (cloud, default)
+
+```env
+LLM_PROVIDER=groq
+LLM_MODEL=llama-3.3-70b-versatile
+GROQ_API_KEY=gsk_your_key_here
+```
+
+Other Groq models: `meta-llama/llama-4-scout-17b-16e-instruct`, `mixtral-8x7b-32768`
+
+### LM Studio (local)
+
+Start LM Studio, load a model, then:
+
+```env
+LLM_PROVIDER=lmstudio
+LLM_MODEL=meta-llama-3.1-8b-instruct
+# No API key needed — runs on http://127.0.0.1:1234
+```
+
+Override the server address if needed: `LMSTUDIO_BASE_URL=http://192.168.1.100:1234/v1`
+
+### Cerebras (cloud)
+
+```env
+LLM_PROVIDER=cerebras
+LLM_MODEL=llama-3.3-70b
+CEREBRAS_API_KEY=your_cerebras_key_here
+```
+
+Other Cerebras models: `llama-3.1-8b`, `llama-3.1-70b`
+
 ## Known Limitations
 
 1. **Dynamic SPAs**: Heavily JavaScript-rendered pages may need longer wait times. The system uses explicit waits but very complex SPAs might still pose challenges.
@@ -194,7 +235,7 @@ When a Selenium locator fails (element not found, timeout, etc.):
 3. **2FA/MFA**: Multi-factor authentication flows require manual credentials and may not be fully automatable.
 4. **File Downloads**: File download verification is not currently supported.
 5. **iframes**: Cross-origin iframe interactions have limited support.
-6. **Rate Limits**: Groq API free tier has rate limits. If you hit them, add a delay between runs or use a paid plan.
+6. **Rate Limits**: Groq/Cerebras API free tiers have rate limits. If you hit them, add a delay between runs or use a paid plan. LM Studio has no rate limits.
 7. **Locator Healing**: Self-healing works best when the target element exists on the page but has a different selector. Completely missing elements cannot be healed.
 8. **Chrome Version**: webdriver-manager auto-detects Chrome version, but very new Chrome versions may briefly lack matching ChromeDriver.
 

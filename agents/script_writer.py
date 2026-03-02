@@ -13,8 +13,9 @@ import os
 import re
 from typing import Any, Dict
 
-from langchain_groq import ChatGroq
 from langchain_core.messages import HumanMessage, SystemMessage
+
+from llm.factory import get_llm
 
 logger = logging.getLogger(__name__)
 
@@ -81,11 +82,7 @@ def run_script_writer(state: Dict[str, Any]) -> Dict[str, Any]:
     )
 
     try:
-        llm = ChatGroq(
-            model="llama-3.3-70b-versatile",
-            temperature=0.1,
-            max_tokens=8192,
-        )
+        llm = get_llm(temperature=0.1, max_tokens=8192)
 
         messages = [
             SystemMessage(content=system_prompt),
