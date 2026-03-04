@@ -19,6 +19,13 @@ class GraphState(TypedDict, total=False):
         Raw Gherkin test case text (Given/When/Then).
     url : str
         Target website URL to test against.
+    page_intelligence : dict
+        Page characteristics detected by the Explorer agent (login form,
+        captcha, 2FA, file upload, anti-bot measures, etc.).
+    page_intel_cache : dict
+        Per-URL page intelligence gathered during execution by the
+        seamless Explorer integration in selenium_runner.  Keyed by
+        URL string, each value is the full intel dict for that page.
     action_plan : list[dict]
         Structured list of UI actions produced by the Analyst agent.
     selenium_script : str
@@ -44,6 +51,8 @@ class GraphState(TypedDict, total=False):
 
     gherkin: str
     url: str
+    page_intelligence: Dict[str, Any]
+    page_intel_cache: Dict[str, Dict[str, Any]]
     action_plan: List[Dict[str, Any]]
     selenium_script: str
     execution_results: Dict[str, Any]

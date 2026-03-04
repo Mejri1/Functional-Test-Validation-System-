@@ -104,6 +104,16 @@ def execute_step(driver, step_num, action, target, value, description):
         step_result["status"] = "FAILED"
         step_result["error"] = str(e)
         step_result["error_type"] = type(e).__name__
+        # Capture the URL at the moment of failure for self-healing
+        try:
+            step_result["failed_url"] = driver.current_url
+        except:
+            step_result["failed_url"] = ""
+        # Capture page HTML at the moment of failure for self-healing
+        try:
+            step_result["page_html_on_failure"] = driver.page_source
+        except:
+            step_result["page_html_on_failure"] = ""
         # Screenshot on FAILURE
         ss_path = os.path.join(SCREENSHOT_FAILURE_DIR, f"step{step_num}_fail_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png")
         try:
@@ -119,6 +129,15 @@ def execute_step(driver, step_num, action, target, value, description):
 ## OUTPUT FORMAT
 Output ONLY the Python script code — no markdown code fences, no explanation, no comments outside the script. The script must define a function called `run_test(driver)` that takes a selenium webdriver instance and returns the results dictionary.
 
+## CALLING CONVENTION
+When generating the `run_test(driver)` function that loops over action plan steps,
+call `execute_step` with positional arguments using explicit key access like this:
+  execute_step(driver, step['step'], step['action'], step['target'],
+               step['value'], step['description'])
+NEVER use **step or **kwargs unpacking when calling execute_step().
+The function signature is:
+  execute_step(driver, step_num, action, target, value, description)
+
 ## RULES
 1. Generate CREATIVE and ROBUST CSS selectors and XPaths based on the element descriptions
 2. For "login button" → try: button[type='submit'], input[type='submit'], button containing 'login'/'sign in' text, #login-btn, .login-button, etc.
@@ -128,5 +147,12 @@ Output ONLY the Python script code — no markdown code fences, no explanation, 
 6. For "wait" actions, use WebDriverWait with appropriate expected conditions
 7. The function MUST be named `run_test` and accept a `driver` parameter
 8. The function MUST return a results dict with keys: steps, overall_status, start_time, end_time
+9. NEVER mix CSS selector syntax inside XPath expressions and vice versa.
+   - WRONG: //*[contains(text(),'iframe[title="reCAPTCHA"]')]
+   - RIGHT for iframes: //iframe[@title='reCAPTCHA']
+   - RIGHT for text matching: //*[contains(text(),'some text')]
+   - Never nest one selector syntax inside another.
+10. For any step where complexity=captcha, do NOT attempt to locate the captcha widget with Selenium at all. Captcha steps are handled by Browser Use externally. For any such step, generate a simple pass-through that waits 2 seconds with WebDriverWait and records the step as PASSED, since Browser Use handles it separately.
+11. For any step where complexity=file_upload or complexity=two_factor, also generate a simple pass-through that waits 2 seconds and records success — these are handled externally by Browser Use.
 
 Now generate the complete Selenium script for the following action plan.

@@ -2,18 +2,18 @@
 
 Builds the stateful graph that orchestrates all agents:
 
-  START → analyst → script_writer → executor
-                                       │
-                              ┌────────┤
-                              │        │
-                        has_failures?  all_passed?
-                              │        │
-                              ▼        ▼
-                          healer    reporter → END
-                              │
-                         re-executor
-                              │
-                       max_retries? → reporter → END
+  START → explorer → analyst → script_writer → executor
+                                                  │
+                                         ┌────────┤
+                                         │        │
+                                   has_failures?  all_passed?
+                                         │        │
+                                         ▼        ▼
+                                     healer    reporter → END
+                                         │
+                                    re-executor
+                                         │
+                                  max_retries? → reporter → END
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from typing import Any, Dict
 from langgraph.graph import END, StateGraph
 
 from graph.state import GraphState
+from agents.explorer import run_explorer
 from agents.analyst import run_analyst
 from agents.script_writer import run_script_writer
 from agents.executor import run_executor
@@ -37,11 +38,22 @@ MAX_HEAL_RETRIES = 3
 
 # ── Node wrappers (add logging / progress) ─────────────────────────
 
+def explorer_node(state: GraphState) -> Dict[str, Any]:
+    logger.info("=" * 60)
+    logger.info("  AGENT: Explorer — Gathering page intelligence")
+    logger.info("=" * 60)
+    print("\n🔎 [1/6] Explorer Agent — visiting page and gathering intelligence...")
+    result = run_explorer(state)
+    pi = result.get("page_intelligence", {})
+    print(f"   ✓ Page type: {pi.get('page_type', '?')}")
+    return result
+
+
 def analyst_node(state: GraphState) -> Dict[str, Any]:
     logger.info("=" * 60)
     logger.info("  AGENT: Analyst — Parsing Gherkin test case")
     logger.info("=" * 60)
-    print("\n🔍 [1/5] Analyst Agent — parsing Gherkin into action plan...")
+    print("\n🔍 [2/6] Analyst Agent — parsing Gherkin into action plan...")
     result = run_analyst(state)
     plan = result.get("action_plan", [])
     print(f"   ✓ Generated {len(plan)} actions")
@@ -54,7 +66,7 @@ def script_writer_node(state: GraphState) -> Dict[str, Any]:
     logger.info("=" * 60)
     logger.info("  AGENT: Script Writer — Generating Selenium script")
     logger.info("=" * 60)
-    print("\n📝 [2/5] Script Writer Agent — generating Selenium test script...")
+    print("\n📝 [3/6] Script Writer Agent — generating Selenium test script...")
     result = run_script_writer(state)
     script = result.get("selenium_script", "")
     print(f"   ✓ Generated script ({len(script)} characters)")
@@ -67,7 +79,7 @@ def executor_node(state: GraphState) -> Dict[str, Any]:
     logger.info("=" * 60)
     logger.info("  AGENT: Executor — Running test%s", label)
     logger.info("=" * 60)
-    print(f"\n🚀 [3/5] Executor Agent — running test in Chrome{label}...")
+    print(f"\n🚀 [4/6] Executor Agent — running test in Chrome{label}...")
     result = run_executor(state)
     exec_results = result.get("execution_results", {})
     status = exec_results.get("overall_status", "UNKNOWN")
@@ -86,7 +98,7 @@ def healer_node(state: GraphState) -> Dict[str, Any]:
     logger.info("=" * 60)
     logger.info("  AGENT: Self-Healer — Attempt %d/%d", retry_count + 1, MAX_HEAL_RETRIES)
     logger.info("=" * 60)
-    print(f"\n🔧 [4/5] Self-Healer Agent — analyzing DOM and fixing locators "
+    print(f"\n🔧 [5/6] Self-Healer Agent — analyzing DOM and fixing locators "
           f"(attempt {retry_count + 1}/{MAX_HEAL_RETRIES})...")
     result = run_self_healer(state)
     history = result.get("healing_history", [])
@@ -99,7 +111,7 @@ def reporter_node(state: GraphState) -> Dict[str, Any]:
     logger.info("=" * 60)
     logger.info("  AGENT: Reporter — Generating reports")
     logger.info("=" * 60)
-    print("\n📊 [5/5] Reporter Agent — generating test reports...")
+    print("\n📊 [6/6] Reporter Agent — generating test reports...")
     result = run_reporter(state)
     paths = result.get("final_report_paths", {})
     if paths:
@@ -149,6 +161,7 @@ def build_graph() -> StateGraph:
     workflow = StateGraph(GraphState)
 
     # Add nodes
+    workflow.add_node("explorer", explorer_node)
     workflow.add_node("analyst", analyst_node)
     workflow.add_node("script_writer", script_writer_node)
     workflow.add_node("executor", executor_node)
@@ -156,9 +169,10 @@ def build_graph() -> StateGraph:
     workflow.add_node("reporter", reporter_node)
 
     # Set entry point
-    workflow.set_entry_point("analyst")
+    workflow.set_entry_point("explorer")
 
     # Linear edges
+    workflow.add_edge("explorer", "analyst")
     workflow.add_edge("analyst", "script_writer")
     workflow.add_edge("script_writer", "executor")
 
@@ -211,6 +225,7 @@ def run_workflow(
         "final_report_paths": {},
         "error": "",
         "headless": headless,
+        "page_intelligence": {},
     }
 
     logger.info("Starting workflow for URL: %s", url)

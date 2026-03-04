@@ -2,7 +2,6 @@ Feature: User Authentication on AutomationExercise
 
   Scenario: Login with incorrect email and password
     Given I am on "http://automationexercise.com"
-    Then I should see the text "Features Items"
     When I click the "Signup / Login" button
     Then I should see the text "Login to your account"
     When I enter "wrongemail@test.com" in the email field

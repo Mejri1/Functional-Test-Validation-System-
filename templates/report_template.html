@@ -31,10 +31,7 @@
             min-height: 100vh;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+        .container { max-width: 1200px; margin: 0 auto; }
 
         /* ── Header ─────────────────────────────────── */
         .header {
@@ -58,19 +55,12 @@
             background: radial-gradient(circle, rgba(59,130,246,0.08) 0%, transparent 70%);
         }
 
-        .header h1 {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 10px;
-            position: relative;
-        }
+        .header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 10px; position: relative; }
 
         .header .meta {
             font-size: 0.9rem;
             color: var(--text-muted);
-            display: flex;
-            gap: 28px;
-            flex-wrap: wrap;
+            display: flex; gap: 28px; flex-wrap: wrap;
             position: relative;
         }
 
@@ -78,17 +68,11 @@
 
         /* ── Status Badge ───────────────────────────── */
         .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 24px;
-            border-radius: 24px;
-            font-weight: 700;
-            font-size: 1rem;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            margin-top: 16px;
-            position: relative;
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 24px; border-radius: 24px;
+            font-weight: 700; font-size: 1rem;
+            text-transform: uppercase; letter-spacing: 0.06em;
+            margin-top: 16px; position: relative;
         }
 
         .status-PASSED { background: rgba(34,197,94,0.15); color: var(--passed); border: 1px solid rgba(34,197,94,0.3); }
@@ -98,9 +82,7 @@
         .status-UNKNOWN { background: rgba(100,116,139,0.15); color: var(--text-dim); border: 1px solid rgba(100,116,139,0.3); }
 
         .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
+            width: 10px; height: 10px; border-radius: 50%;
             animation: pulse 2s ease-in-out infinite;
         }
 
@@ -109,10 +91,7 @@
         .status-PARTIALLY_PASSED .status-dot { background: var(--partial); }
         .status-ERROR .status-dot { background: var(--failed); }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
         /* ── Cards ──────────────────────────────────── */
         .card {
@@ -124,15 +103,11 @@
         }
 
         .card h2 {
-            font-size: 1.15rem;
-            font-weight: 600;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
+            font-size: 1.15rem; font-weight: 600;
+            margin-bottom: 20px; padding-bottom: 12px;
             border-bottom: 1px solid var(--border);
             color: var(--text);
-            display: flex;
-            align-items: center;
-            gap: 10px;
+            display: flex; align-items: center; gap: 10px;
         }
 
         /* ── Summary Stats ──────────────────────────── */
@@ -143,30 +118,14 @@
         }
 
         .stat-item {
-            text-align: center;
-            padding: 18px 12px;
-            border-radius: 10px;
-            background: var(--bg-surface);
-            border: 1px solid var(--border);
-            transition: transform 0.15s;
+            text-align: center; padding: 18px 12px;
+            border-radius: 10px; background: var(--bg-surface);
+            border: 1px solid var(--border); transition: transform 0.15s;
         }
 
         .stat-item:hover { transform: translateY(-2px); }
-
-        .stat-item .number {
-            font-size: 2rem;
-            font-weight: 700;
-            line-height: 1.2;
-        }
-
-        .stat-item .label {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-            margin-top: 4px;
-        }
-
+        .stat-item .number { font-size: 2rem; font-weight: 700; line-height: 1.2; }
+        .stat-item .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; }
         .stat-passed .number { color: var(--passed); }
         .stat-failed .number { color: var(--failed); }
         .stat-healed .number { color: var(--healed); }
@@ -174,280 +133,163 @@
 
         /* ── Gherkin Block ──────────────────────────── */
         .gherkin-block {
-            background: #0d1117;
-            color: #c9d1d9;
-            padding: 20px 24px;
-            border-radius: 8px;
+            background: #0d1117; color: #c9d1d9;
+            padding: 20px 24px; border-radius: 8px;
             font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
-            font-size: 0.88rem;
-            white-space: pre-wrap;
-            overflow-x: auto;
-            border: 1px solid #30363d;
-            line-height: 1.7;
+            font-size: 0.88rem; white-space: pre-wrap; overflow-x: auto;
+            border: 1px solid #30363d; line-height: 1.7;
         }
 
         /* ── Step Flow ──────────────────────────────── */
-        .step-flow {
-            display: flex;
-            flex-direction: column;
-            gap: 0;
-        }
+        .step-flow { display: flex; flex-direction: column; gap: 0; }
 
         .step-card {
-            display: grid;
-            grid-template-columns: 52px 1fr;
-            gap: 0;
-            position: relative;
+            display: grid; grid-template-columns: 52px 1fr;
+            gap: 0; position: relative;
         }
 
-        /* Timeline column */
-        .step-timeline {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            position: relative;
-        }
+        .step-timeline { display: flex; flex-direction: column; align-items: center; position: relative; }
 
         .step-number-circle {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 0.85rem;
-            z-index: 2;
-            flex-shrink: 0;
-            border: 2px solid;
+            width: 40px; height: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 0.85rem; z-index: 2;
+            flex-shrink: 0; border: 2px solid;
         }
 
-        .step-card.passed .step-number-circle {
-            background: rgba(34,197,94,0.15);
-            border-color: var(--passed);
-            color: var(--passed);
-        }
+        .step-card.passed .step-number-circle { background: rgba(34,197,94,0.15); border-color: var(--passed); color: var(--passed); }
+        .step-card.failed .step-number-circle { background: rgba(239,68,68,0.15); border-color: var(--failed); color: var(--failed); }
+        .step-card.unknown .step-number-circle { background: rgba(100,116,139,0.15); border-color: var(--text-dim); color: var(--text-dim); }
 
-        .step-card.failed .step-number-circle {
-            background: rgba(239,68,68,0.15);
-            border-color: var(--failed);
-            color: var(--failed);
-        }
-
-        .step-card.unknown .step-number-circle {
-            background: rgba(100,116,139,0.15);
-            border-color: var(--text-dim);
-            color: var(--text-dim);
-        }
-
-        .step-connector {
-            width: 2px;
-            flex-grow: 1;
-            min-height: 16px;
-        }
-
+        .step-connector { width: 2px; flex-grow: 1; min-height: 16px; }
         .step-card.passed .step-connector { background: rgba(34,197,94,0.25); }
         .step-card.failed .step-connector { background: rgba(239,68,68,0.25); }
         .step-card.unknown .step-connector { background: rgba(100,116,139,0.2); }
-
         .step-card:last-child .step-connector { display: none; }
 
-        /* Content column */
         .step-content {
             background: var(--bg-surface);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 18px 20px;
-            margin-bottom: 12px;
-            margin-left: 12px;
+            border: 1px solid var(--border); border-radius: 10px;
+            padding: 18px 20px; margin-bottom: 12px; margin-left: 12px;
             transition: border-color 0.15s;
         }
 
         .step-card.passed .step-content { border-left: 3px solid var(--passed); }
         .step-card.failed .step-content { border-left: 3px solid var(--failed); }
+        .step-card .step-content:hover { border-color: var(--info); }
 
-        .step-card .step-content:hover {
-            border-color: var(--info);
-        }
-
-        .step-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 10px;
-            gap: 12px;
-        }
-
-        .step-action {
-            font-weight: 600;
-            font-size: 0.95rem;
-            color: var(--text);
-            flex: 1;
-        }
+        .step-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; gap: 12px; }
+        .step-action { font-weight: 600; font-size: 0.95rem; color: var(--text); flex: 1; }
 
         .step-badge {
-            font-size: 0.7rem;
-            font-weight: 700;
-            padding: 3px 10px;
-            border-radius: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            white-space: nowrap;
+            font-size: 0.7rem; font-weight: 700; padding: 3px 10px;
+            border-radius: 12px; text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap;
         }
-
         .step-badge.passed { background: rgba(34,197,94,0.15); color: var(--passed); }
         .step-badge.failed { background: rgba(239,68,68,0.15); color: var(--failed); }
         .step-badge.unknown { background: rgba(100,116,139,0.15); color: var(--text-dim); }
 
-        .step-meta {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            margin-bottom: 8px;
+        .engine-badge {
+            font-size: 0.62rem; font-weight: 700; padding: 2px 8px;
+            border-radius: 8px; text-transform: capitalize; letter-spacing: 0.04em;
+            white-space: nowrap; margin-left: 8px; vertical-align: middle;
+        }
+        .engine-badge.selenium { background: rgba(59,130,246,0.15); color: var(--info); }
+        .engine-badge.browser-use { background: rgba(139,92,246,0.15); color: var(--healed); }
+
+        .step-meta { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; }
+
+        .step-intel {
+            font-size: 0.75rem; color: var(--text-dim);
+            background: rgba(59,130,246,0.06); border-radius: 6px;
+            padding: 4px 10px; margin-bottom: 8px; display: inline-block;
+            border: 1px solid rgba(59,130,246,0.12);
         }
 
         .step-error {
-            background: rgba(239,68,68,0.08);
-            border: 1px solid rgba(239,68,68,0.2);
-            border-radius: 6px;
-            padding: 10px 14px;
-            font-size: 0.82rem;
-            color: #fca5a5;
-            margin-top: 10px;
-            font-family: 'Cascadia Code', 'Consolas', monospace;
-            word-break: break-word;
+            background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.2);
+            border-radius: 6px; padding: 10px 14px; font-size: 0.82rem; color: #fca5a5;
+            margin-top: 10px; font-family: 'Cascadia Code', 'Consolas', monospace; word-break: break-word;
         }
 
-        .step-healed {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            font-size: 0.78rem;
-            color: var(--healed);
-            margin-top: 6px;
-        }
+        .step-healed { display: inline-flex; align-items: center; gap: 4px; font-size: 0.78rem; color: var(--healed); margin-top: 6px; }
 
-        /* Screenshot inside step card */
-        .step-screenshot {
-            margin-top: 14px;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 1px solid var(--border);
-            position: relative;
-        }
-
-        .step-screenshot img {
-            width: 100%;
-            display: block;
-            cursor: pointer;
-            transition: opacity 0.15s;
-        }
-
+        .step-screenshot { margin-top: 14px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); position: relative; }
+        .step-screenshot img { width: 100%; display: block; cursor: pointer; transition: opacity 0.15s; }
         .step-screenshot img:hover { opacity: 0.92; }
+        .step-screenshot .ss-label { position: absolute; top: 8px; right: 8px; font-size: 0.65rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .step-screenshot .ss-label.pass-label { background: rgba(34,197,94,0.85); color: #fff; }
+        .step-screenshot .ss-label.fail-label { background: rgba(239,68,68,0.85); color: #fff; }
 
-        .step-screenshot .ss-label {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            font-size: 0.65rem;
-            font-weight: 700;
-            padding: 2px 8px;
-            border-radius: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+        /* ── Page Intelligence Report ───────────────── */
+        .page-intel-entry {
+            background: var(--bg-surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 20px; margin-bottom: 16px;
         }
+        .page-intel-entry h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 12px; color: var(--text); }
+        .page-intel-url { font-size: 0.82rem; color: var(--info); margin-bottom: 8px; word-break: break-all; }
+        .page-intel-timestamp { font-size: 0.72rem; color: var(--text-dim); margin-bottom: 12px; }
 
-        .step-screenshot .ss-label.pass-label {
-            background: rgba(34,197,94,0.85);
-            color: #fff;
+        .intel-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+        .intel-pill {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 12px; border-radius: 14px;
+            font-size: 0.72rem; font-weight: 600;
         }
+        .intel-pill.green { background: rgba(34,197,94,0.12); color: #22c55e; border: 1px solid rgba(34,197,94,0.2); }
+        .intel-pill.red { background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+        .intel-pill.blue { background: rgba(59,130,246,0.12); color: #3b82f6; border: 1px solid rgba(59,130,246,0.2); }
+        .intel-pill.purple { background: rgba(139,92,246,0.12); color: #8b5cf6; border: 1px solid rgba(139,92,246,0.2); }
+        .intel-pill.amber { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.2); }
 
-        .step-screenshot .ss-label.fail-label {
-            background: rgba(239,68,68,0.85);
-            color: #fff;
+        .intel-notable { font-size: 0.82rem; color: var(--text-muted); margin-bottom: 10px; }
+        .intel-notable ul { list-style: disc; padding-left: 18px; }
+        .intel-notable li { margin-bottom: 2px; }
+
+        .intel-thumbnail { max-width: 300px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 12px; cursor: pointer; }
+        .intel-thumbnail:hover { opacity: 0.9; }
+
+        .collapsible-toggle {
+            cursor: pointer; font-size: 0.78rem; color: var(--info);
+            background: none; border: 1px solid rgba(59,130,246,0.3);
+            border-radius: 6px; padding: 4px 12px; margin-top: 8px;
+        }
+        .collapsible-toggle:hover { background: rgba(59,130,246,0.08); }
+        .collapsible-content { display: none; margin-top: 10px; }
+        .collapsible-content.open { display: block; }
+        .raw-json-block {
+            background: #0d1117; color: #c9d1d9;
+            padding: 14px 18px; border-radius: 6px;
+            font-family: 'Cascadia Code', 'Consolas', monospace;
+            font-size: 0.76rem; white-space: pre-wrap; overflow-x: auto;
+            border: 1px solid #30363d; max-height: 400px; overflow-y: auto;
         }
 
         /* ── Healing Events ─────────────────────────── */
         .healing-event {
             border-left: 3px solid var(--healed);
-            padding: 14px 18px;
-            margin-bottom: 14px;
-            background: rgba(139,92,246,0.06);
-            border-radius: 0 8px 8px 0;
+            padding: 14px 18px; margin-bottom: 14px;
+            background: rgba(139,92,246,0.06); border-radius: 0 8px 8px 0;
         }
-
         .healing-event.success { border-left-color: var(--passed); background: rgba(34,197,94,0.06); }
         .healing-event.failure { border-left-color: var(--failed); background: rgba(239,68,68,0.06); }
-
-        .healing-event h4 {
-            font-size: 0.92rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .healing-event .detail {
-            font-size: 0.82rem;
-            color: var(--text-muted);
-            line-height: 1.8;
-        }
-
-        .healing-event code {
-            background: rgba(255,255,255,0.06);
-            padding: 2px 7px;
-            border-radius: 4px;
-            font-size: 0.82em;
-            font-family: 'Cascadia Code', 'Consolas', monospace;
-        }
+        .healing-event h4 { font-size: 0.92rem; font-weight: 600; margin-bottom: 8px; }
+        .healing-event .detail { font-size: 0.82rem; color: var(--text-muted); line-height: 1.8; }
+        .healing-event code { background: rgba(255,255,255,0.06); padding: 2px 7px; border-radius: 4px; font-size: 0.82em; font-family: 'Cascadia Code', 'Consolas', monospace; }
 
         /* ── Unresolved & Recommendations ───────────── */
-        .unresolved-item {
-            border-left: 3px solid var(--failed);
-            padding: 14px 18px;
-            margin-bottom: 12px;
-            background: rgba(239,68,68,0.06);
-            border-radius: 0 8px 8px 0;
-        }
-
+        .unresolved-item { border-left: 3px solid var(--failed); padding: 14px 18px; margin-bottom: 12px; background: rgba(239,68,68,0.06); border-radius: 0 8px 8px 0; }
         .recommendations ul { list-style: none; padding: 0; }
-
-        .recommendations li {
-            padding: 10px 14px;
-            margin-bottom: 8px;
-            background: rgba(59,130,246,0.06);
-            border-radius: 8px;
-            font-size: 0.88rem;
-            border: 1px solid rgba(59,130,246,0.15);
-        }
-
+        .recommendations li { padding: 10px 14px; margin-bottom: 8px; background: rgba(59,130,246,0.06); border-radius: 8px; font-size: 0.88rem; border: 1px solid rgba(59,130,246,0.15); }
         .recommendations li::before { content: '\1F4A1  '; }
 
         /* ── Screenshot Modal ───────────────────────── */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.85);
-            z-index: 9999;
-            align-items: center;
-            justify-content: center;
-            cursor: zoom-out;
-        }
-
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center; cursor: zoom-out; }
         .modal-overlay.active { display: flex; }
-
-        .modal-overlay img {
-            max-width: 92vw;
-            max-height: 92vh;
-            border-radius: 8px;
-            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
-        }
+        .modal-overlay img { max-width: 92vw; max-height: 92vh; border-radius: 8px; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
 
         /* ── Footer ─────────────────────────────────── */
-        .footer {
-            text-align: center;
-            padding: 24px;
-            color: var(--text-dim);
-            font-size: 0.78rem;
-        }
+        .footer { text-align: center; padding: 24px; color: var(--text-dim); font-size: 0.78rem; }
 
         /* ── Responsive ─────────────────────────────── */
         @media (max-width: 640px) {
@@ -514,6 +356,51 @@
             <div class="gherkin-block">{{ report.gherkin_test | default('N/A') }}</div>
         </div>
 
+        <!-- Page Intelligence (from Explorer Agent — initial) -->
+        {% if report.page_intelligence %}
+        <div class="card">
+            <h2>&#128270; Page Intelligence (Initial)</h2>
+            <p style="color:var(--text-muted);margin-bottom:14px;font-size:0.85rem;">Gathered by the Explorer agent before test execution</p>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+                {% if report.page_intelligence.page_type %}
+                <span style="display:inline-block;padding:4px 12px;border-radius:12px;font-size:0.78rem;font-weight:600;background:rgba(59,130,246,0.15);color:#3b82f6;">
+                    Page: {{ report.page_intelligence.page_type }}
+                </span>
+                {% endif %}
+                {% if report.page_intelligence.login_form is mapping and report.page_intelligence.login_form.present %}
+                <span style="display:inline-block;padding:4px 12px;border-radius:12px;font-size:0.78rem;font-weight:600;background:rgba(34,197,94,0.15);color:#22c55e;">
+                    &#9989; Login Form
+                </span>
+                {% endif %}
+                {% if report.page_intelligence.captcha is mapping and report.page_intelligence.captcha.present %}
+                <span style="display:inline-block;padding:4px 12px;border-radius:12px;font-size:0.78rem;font-weight:600;background:rgba(245,158,11,0.15);color:#f59e0b;">
+                    &#9888; Captcha: {{ report.page_intelligence.captcha.type | default('unknown') }}
+                </span>
+                {% endif %}
+                {% if report.page_intelligence.two_factor is mapping and report.page_intelligence.two_factor.present %}
+                <span style="display:inline-block;padding:4px 12px;border-radius:12px;font-size:0.78rem;font-weight:600;background:rgba(139,92,246,0.15);color:#8b5cf6;">
+                    &#128274; 2FA: {{ report.page_intelligence.two_factor.type | default('unknown') }}
+                </span>
+                {% endif %}
+                {% if report.page_intelligence.file_upload is mapping and report.page_intelligence.file_upload.present %}
+                <span style="display:inline-block;padding:4px 12px;border-radius:12px;font-size:0.78rem;font-weight:600;background:rgba(236,72,153,0.15);color:#ec4899;">
+                    &#128206; File Upload
+                </span>
+                {% endif %}
+                {% if report.page_intelligence.page_technology %}
+                <span style="display:inline-block;padding:4px 12px;border-radius:12px;font-size:0.78rem;font-weight:600;background:rgba(100,116,139,0.15);color:#94a3b8;">
+                    Tech: {{ report.page_intelligence.page_technology }}
+                </span>
+                {% endif %}
+            </div>
+            {% if report.page_intelligence.recommended_approach %}
+            <div style="background:var(--bg-surface);border-radius:8px;padding:12px 16px;font-size:0.85rem;color:var(--text-muted);">
+                <strong style="color:var(--text);">Recommended Approach:</strong> {{ report.page_intelligence.recommended_approach }}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
         <!-- Step-by-Step Visual Flow -->
         <div class="card">
             <h2>&#128269; Step-by-Step Results</h2>
@@ -523,17 +410,24 @@
                 {% set step_status = step.status | default('UNKNOWN') %}
                 {% set status_class = 'passed' if step_status == 'PASSED' else ('failed' if step_status == 'FAILED' else 'unknown') %}
                 <div class="step-card {{ status_class }}">
-                    <!-- Timeline -->
                     <div class="step-timeline">
                         <div class="step-number-circle">{{ step.step_number | default(loop.index) }}</div>
                         <div class="step-connector"></div>
                     </div>
-                    <!-- Content -->
                     <div class="step-content">
                         <div class="step-header">
-                            <span class="step-action">{{ step.action | default('Step ' ~ loop.index) }}</span>
+                            <span class="step-action">
+                                {{ step.action | default('Step ' ~ loop.index) }}
+                                {% set engine = step.engine | default('selenium') %}
+                                <span class="engine-badge {{ 'selenium' if engine == 'selenium' else 'browser-use' }}">
+                                    {{ engine | replace('_', ' ') | title }}
+                                </span>
+                            </span>
                             <span class="step-badge {{ status_class }}">{{ step_status }}</span>
                         </div>
+                        {% if step.intel_summary %}
+                        <div class="step-intel">{{ step.intel_summary }}</div>
+                        {% endif %}
                         {% if step.target %}
                         <div class="step-meta">Target: {{ step.target }}</div>
                         {% endif %}
@@ -565,6 +459,93 @@
             <p style="color:var(--text-muted)">No step details available.</p>
             {% endif %}
         </div>
+
+        <!-- ══ Page Intelligence Report (per page visited) ══ -->
+        {% if report.page_intel_entries %}
+        <div class="card">
+            <h2>&#127760; Page Intelligence Report</h2>
+            <p style="color:var(--text-muted);margin-bottom:18px;font-size:0.85rem;">
+                Intelligence gathered during execution for each page visited
+            </p>
+            {% for entry in report.page_intel_entries %}
+            <div class="page-intel-entry">
+                <div class="page-intel-url">&#128279; {{ entry.url | default('N/A') }}</div>
+                <div class="page-intel-timestamp">Captured: {{ entry.capture_timestamp | default(entry.timestamp | default('N/A')) }}</div>
+
+                {% if entry.screenshot_base64 %}
+                <img class="intel-thumbnail" src="{{ entry.screenshot_base64 }}" alt="Page screenshot" onclick="openModal(this.src)">
+                {% endif %}
+
+                <!-- Page type badge -->
+                <div class="intel-pills">
+                    {% set ptype = entry.page_type | default('unknown') %}
+                    {% set ptype_colors = {'login': 'blue', 'form': 'blue', 'captcha': 'amber', 'upload': 'purple', 'dashboard': 'green', 'listing': 'green', 'checkout': 'amber'} %}
+                    <span class="intel-pill {{ ptype_colors.get(ptype, 'blue') }}">{{ ptype | upper }}</span>
+
+                    {% if entry.main_purpose %}
+                    <span class="intel-pill blue" style="font-weight:400;font-size:0.7rem;">{{ entry.main_purpose[:60] }}</span>
+                    {% endif %}
+                </div>
+
+                <!-- Key findings pills -->
+                <div class="intel-pills">
+                    {% if entry.captcha_present %}
+                    <span class="intel-pill red">&#9888; Captcha: {{ entry.captcha_type | default('detected') }}</span>
+                    {% else %}
+                    <span class="intel-pill green">&#10004; No Captcha</span>
+                    {% endif %}
+
+                    {% if entry.two_factor_present %}
+                    <span class="intel-pill red">&#128274; 2FA Detected</span>
+                    {% else %}
+                    <span class="intel-pill green">&#10004; No 2FA</span>
+                    {% endif %}
+
+                    {% if entry.obstacles %}
+                    <span class="intel-pill red">&#9888; Obstacles: {{ entry.obstacles | length }}</span>
+                    {% else %}
+                    <span class="intel-pill green">&#10004; No Obstacles</span>
+                    {% endif %}
+
+                    {% if entry.visible_errors %}
+                    <span class="intel-pill red">&#10060; Errors: {{ entry.visible_errors | length }}</span>
+                    {% else %}
+                    <span class="intel-pill green">&#10004; No Errors</span>
+                    {% endif %}
+
+                    {% set form_count = entry.form_fields | default([]) | length %}
+                    {% if form_count > 0 %}
+                    <span class="intel-pill purple">&#128221; {{ form_count }} Form Fields</span>
+                    {% else %}
+                    <span class="intel-pill green">No Forms</span>
+                    {% endif %}
+
+                    {% if entry.file_upload_present %}
+                    <span class="intel-pill amber">&#128206; File Upload</span>
+                    {% endif %}
+                </div>
+
+                <!-- Notable elements -->
+                {% if entry.notable_elements %}
+                <div class="intel-notable">
+                    <strong>Notable Elements:</strong>
+                    <ul>
+                        {% for el in entry.notable_elements[:8] %}
+                        <li>{{ el }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <!-- Collapsible raw JSON -->
+                <button class="collapsible-toggle" onclick="toggleCollapsible(this)">Show Raw JSON</button>
+                <div class="collapsible-content">
+                    <pre class="raw-json-block">{{ entry | tojson(indent=2) }}</pre>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
         <!-- Healing Events -->
         {% if report.healing_events %}
@@ -647,6 +628,11 @@
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') closeModal();
         });
+        function toggleCollapsible(btn) {
+            var content = btn.nextElementSibling;
+            content.classList.toggle('open');
+            btn.textContent = content.classList.contains('open') ? 'Hide Raw JSON' : 'Show Raw JSON';
+        }
     </script>
 </body>
 </html>

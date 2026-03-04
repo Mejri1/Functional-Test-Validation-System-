@@ -1,7 +1,8 @@
 """Reporter Agent — generates structured JSON and HTML test reports.
 
-Takes all execution results, healing events, and the original Gherkin
-test to produce comprehensive reports saved to outputs/reports/.
+Takes all execution results, healing events, page intelligence cache,
+and the original Gherkin test to produce comprehensive reports saved to
+``outputs/reports/``.
 """
 
 from __future__ import annotations
@@ -110,9 +111,24 @@ def _generate_report_data_fallback(state: Dict[str, Any]) -> Dict[str, Any]:
     else:
         overall = "PARTIALLY_PASSED"
 
-    # Override with execution results status if available
     if execution_results.get("overall_status") == "ERROR":
         overall = "FAILED"
+
+    # ── Build page intelligence report entries ─────────────────────
+    pi_cache = execution_results.get("page_intelligence_cache", {})
+    # Also merge the top-level page_intelligence from the old Explorer
+    top_pi = state.get("page_intelligence", {})
+    if top_pi and url and url not in pi_cache:
+        pi_cache[url] = top_pi
+
+    page_intel_entries = []
+    for pg_url, pg_intel in pi_cache.items():
+        entry = dict(pg_intel)
+        entry["url"] = pg_url
+        # Screenshot thumbnail (base64 embedded)
+        ss_path = entry.get("screenshot_path", "")
+        entry["screenshot_base64"] = _screenshot_to_base64(ss_path)
+        page_intel_entries.append(entry)
 
     return {
         "report_title": "Test Validation Report",
@@ -120,6 +136,8 @@ def _generate_report_data_fallback(state: Dict[str, Any]) -> Dict[str, Any]:
         "overall_status": overall,
         "target_url": url,
         "gherkin_test": gherkin,
+        "page_intelligence": state.get("page_intelligence", {}),
+        "page_intel_entries": page_intel_entries,
         "summary": {
             "total_steps": len(steps),
             "passed_steps": passed,
@@ -137,7 +155,9 @@ def _generate_report_data_fallback(state: Dict[str, Any]) -> Dict[str, Any]:
                 "error": s.get("error"),
                 "screenshot_path": s.get("screenshot"),
                 "healing_applied": False,
+                "engine": s.get("engine", "selenium"),
                 "notes": "",
+                "intel_summary": s.get("intel_summary", ""),
             }
             for i, s in enumerate(steps)
         ],
@@ -178,11 +198,28 @@ def run_reporter(state: Dict[str, Any]) -> Dict[str, Any]:
     execution_results = state.get("execution_results", {})
     healing_history = state.get("healing_history", [])
     retry_count = state.get("retry_count", 0)
+    page_intelligence = state.get("page_intelligence", {})
 
     # Build context for LLM
+    pi_section = ""
+    if page_intelligence:
+        pi_section = (
+            f"## Page Intelligence\n"
+            f"```json\n{json.dumps(page_intelligence, indent=2, default=str)[:2000]}\n```\n\n"
+        )
+
+    # Include per-page intelligence from execution
+    pi_cache = execution_results.get("page_intelligence_cache", {})
+    if pi_cache:
+        pi_section += (
+            f"## Per-Page Intelligence ({len(pi_cache)} pages)\n"
+            f"```json\n{json.dumps(list(pi_cache.keys()), indent=2)}\n```\n\n"
+        )
+
     user_message = (
         f"## Original Gherkin Test\n```\n{gherkin}\n```\n\n"
         f"## Target URL\n{url}\n\n"
+        f"{pi_section}"
         f"## Execution Results\n```json\n{json.dumps(execution_results, indent=2, default=str)[:6000]}\n```\n\n"
         f"## Self-Healing History\n```json\n{json.dumps(healing_history, indent=2, default=str)[:3000]}\n```\n\n"
         f"## Retry Count: {retry_count}\n\n"
@@ -214,6 +251,24 @@ def run_reporter(state: Dict[str, Any]) -> Dict[str, Any]:
     report_data.setdefault("overall_status", "UNKNOWN")
     report_data.setdefault("target_url", url)
     report_data.setdefault("gherkin_test", gherkin)
+
+    # ── Always build page_intel_entries for the HTML template ──────
+    if "page_intel_entries" not in report_data:
+        pi_cache_raw = execution_results.get("page_intelligence_cache", {})
+        top_pi = page_intelligence
+        if top_pi and url and url not in pi_cache_raw:
+            pi_cache_raw[url] = top_pi
+        entries = []
+        for pg_url, pg_intel in pi_cache_raw.items():
+            entry = dict(pg_intel)
+            entry["url"] = pg_url
+            entry["screenshot_base64"] = _screenshot_to_base64(entry.get("screenshot_path", ""))
+            entries.append(entry)
+        report_data["page_intel_entries"] = entries
+
+    # Ensure steps have intel_summary
+    for sd in report_data.get("steps_detail", []):
+        sd.setdefault("intel_summary", "")
 
     # Save JSON report
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -258,13 +313,20 @@ def _minimal_html_report(data: Dict[str, Any]) -> str:
     for step in data.get("steps_detail", []):
         s_status = step.get("status", "UNKNOWN")
         s_color = {"PASSED": "#22c55e", "FAILED": "#ef4444"}.get(s_status, "#64748b")
+        engine = step.get("engine", "selenium")
+        engine_badge = (
+            '<span style="display:inline-block;font-size:0.65rem;font-weight:700;'
+            'padding:2px 8px;border-radius:8px;margin-left:8px;'
+            f'{"background:rgba(59,130,246,0.15);color:#3b82f6" if engine == "selenium" else "background:rgba(139,92,246,0.15);color:#8b5cf6"}'
+            f'">{engine.replace("_", " ").title()}</span>'
+        )
         ss_html = ""
         b64 = step.get("screenshot_base64", "")
         if b64:
             ss_html = f'<br><img src="{b64}" style="max-width:100%;margin-top:8px;border-radius:6px;" />'
         steps_html += (
             f"<tr><td>{step.get('step_number', '')}</td>"
-            f"<td>{step.get('action', '')}</td>"
+            f"<td>{step.get('action', '')}{engine_badge}</td>"
             f"<td style='color:{s_color};font-weight:bold'>{s_status}</td>"
             f"<td>{step.get('error', '') or ''}{ss_html}</td></tr>"
         )

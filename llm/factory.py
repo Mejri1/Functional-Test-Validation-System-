@@ -1,17 +1,23 @@
-"""Universal LLM factory — returns a LangChain-compatible chat model.
+"""Universal LLM factory — returns LangChain-compatible chat models.
 
-Reads ``LLM_PROVIDER`` from ``.env`` (or the environment) and builds the
-matching LangChain chat model.  Supported providers:
+Two public functions:
 
-* **groq** — Groq cloud API via ``ChatGroq``
-* **lmstudio** — local LM Studio server (OpenAI-compatible) via ``ChatOpenAI``
-* **cerebras** — Cerebras cloud API (OpenAI-compatible) via ``ChatOpenAI``
+* ``get_llm()`` — reads ``LLM_PROVIDER`` / ``LLM_MODEL`` from ``.env``.
+  Used by **all regular agents** (analyst, script_writer, executor,
+  self_healer, reporter, explorer).
+* ``get_browser_use_llm()`` — reads ``BROWSER_USE_PROVIDER`` /
+  ``BROWSER_USE_MODEL`` / ``BROWSER_USE_API_KEY`` from ``.env``.
+  Returns a ``ChatOpenAI`` instance pointed at the vision-capable
+  provider.  **Only** used by ``tools/browser_use_runner.py``.
+
+Supported regular providers: groq, cerebras, lmstudio.
 
 Usage::
 
-    from llm.factory import get_llm
-    llm = get_llm()                  # uses .env defaults
-    llm = get_llm(temperature=0.3)   # override temperature
+    from llm.factory import get_llm, get_browser_use_llm
+
+    llm = get_llm()                         # regular agents
+    vision_llm = get_browser_use_llm()      # browser_use_runner only
 """
 
 from __future__ import annotations
@@ -22,18 +28,34 @@ import os
 from dotenv import load_dotenv
 from langchain_core.language_models.chat_models import BaseChatModel
 
-load_dotenv()
+load_dotenv(override=True)
 
 logger = logging.getLogger(__name__)
 
 # ── Defaults ────────────────────────────────────────────────────────
-_DEFAULT_PROVIDER = "groq"
+_DEFAULT_PROVIDER = "cerebras"
 _DEFAULT_MODEL: dict[str, str] = {
     "groq": "llama-3.3-70b-versatile",
     "lmstudio": "meta-llama-3.1-8b-instruct",
-    "cerebras": "llama-3.3-70b",
+    "cerebras": "gpt-oss-120b",
 }
 
+_BU_BASE_URLS: dict[str, str] = {
+    "groq": "https://api.groq.com/openai/v1",
+    "cerebras": "https://api.cerebras.ai/v1",
+    "lmstudio": "http://127.0.0.1:1234/v1",
+}
+
+_BU_DEFAULT_MODEL: dict[str, str] = {
+    "groq": "meta-llama/llama-4-scout-17b-16e-instruct",
+    "cerebras": "llama-3.3-70b",
+    "lmstudio": "meta-llama-3.1-8b-instruct",
+}
+
+
+# =====================================================================
+# get_llm  —  regular agents (analyst, script_writer, healer, etc.)
+# =====================================================================
 
 def get_llm(
     temperature: float = 0.1,
@@ -44,37 +66,27 @@ def get_llm(
     Environment variables consumed
     ------------------------------
     LLM_PROVIDER : str
-        One of ``groq``, ``lmstudio``, ``cerebras`` (default: ``groq``).
+        One of ``groq``, ``lmstudio``, ``cerebras`` (default: ``cerebras``).
     LLM_MODEL : str
         Model name appropriate for the chosen provider.
-        Falls back to ``GROQ_MODEL`` for backward compatibility.
     GROQ_API_KEY : str
         Required when ``LLM_PROVIDER=groq``.
     CEREBRAS_API_KEY : str
         Required when ``LLM_PROVIDER=cerebras``.
 
-    Parameters
-    ----------
-    temperature : float
-        Sampling temperature (default 0.1).
-    max_tokens : int
-        Maximum tokens in the response (default 4096).
-
     Returns
     -------
     BaseChatModel
-        A ready-to-use LangChain chat model instance.
     """
     provider = os.getenv("LLM_PROVIDER", _DEFAULT_PROVIDER).strip().lower()
 
-    # Model: LLM_MODEL takes precedence, then legacy GROQ_MODEL, then default
     model = (
         os.getenv("LLM_MODEL")
         or os.getenv("GROQ_MODEL")
-        or _DEFAULT_MODEL.get(provider, _DEFAULT_MODEL["groq"])
+        or _DEFAULT_MODEL.get(provider, _DEFAULT_MODEL["cerebras"])
     )
 
-    logger.info("LLM factory: provider=%s  model=%s", provider, model)
+    logger.info("LLM factory (get_llm): provider=%s  model=%s", provider, model)
 
     # ── Groq ────────────────────────────────────────────────────────
     if provider == "groq":
@@ -85,7 +97,6 @@ def get_llm(
             raise RuntimeError(
                 "GROQ_API_KEY is not set. Add it to your .env file."
             )
-
         return ChatGroq(
             model=model,
             temperature=temperature,
@@ -98,13 +109,12 @@ def get_llm(
         from langchain_openai import ChatOpenAI
 
         base_url = os.getenv("LMSTUDIO_BASE_URL", "http://127.0.0.1:1234/v1")
-
         return ChatOpenAI(
             model=model,
             temperature=temperature,
             max_tokens=max_tokens,
             base_url=base_url,
-            api_key="lm-studio",  # LM Studio accepts any string
+            api_key="lm-studio",
         )
 
     # ── Cerebras (cloud, OpenAI-compatible) ─────────────────────────
@@ -116,11 +126,7 @@ def get_llm(
             raise RuntimeError(
                 "CEREBRAS_API_KEY is not set. Add it to your .env file."
             )
-
-        base_url = os.getenv(
-            "CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1"
-        )
-
+        base_url = os.getenv("CEREBRAS_BASE_URL", "https://api.cerebras.ai/v1")
         return ChatOpenAI(
             model=model,
             temperature=temperature,
@@ -132,4 +138,64 @@ def get_llm(
     raise ValueError(
         f"Unknown LLM_PROVIDER '{provider}'. "
         f"Supported: groq, lmstudio, cerebras"
+    )
+
+
+# =====================================================================
+# get_browser_use_llm  —  ONLY used by tools/browser_use_runner.py
+# =====================================================================
+
+def get_browser_use_llm(temperature: float = 0.1) -> BaseChatModel:
+    """Build a LangChain ``ChatOpenAI`` pointed at the Browser Use vision provider.
+
+    Environment variables consumed
+    ------------------------------
+    BROWSER_USE_PROVIDER : str
+        ``groq`` (default), ``cerebras``, ``lmstudio``.
+    BROWSER_USE_MODEL : str
+        Vision-capable model name.
+    BROWSER_USE_API_KEY : str
+        Falls back to ``GROQ_API_KEY`` / ``CEREBRAS_API_KEY`` when empty.
+
+    Returns
+    -------
+    BaseChatModel
+        A ``ChatOpenAI`` instance backed by the chosen vision provider.
+    """
+    from langchain_openai import ChatOpenAI
+
+    provider = os.getenv("BROWSER_USE_PROVIDER", "groq").strip().lower()
+    default_model = _BU_DEFAULT_MODEL.get(provider, _BU_DEFAULT_MODEL["groq"])
+    model = os.getenv("BROWSER_USE_MODEL", default_model)
+
+    api_key = os.getenv("BROWSER_USE_API_KEY", "")
+    if not api_key:
+        if provider == "groq":
+            api_key = os.getenv("GROQ_API_KEY", "")
+        elif provider == "cerebras":
+            api_key = os.getenv("CEREBRAS_API_KEY", "")
+        elif provider == "lmstudio":
+            api_key = "lm-studio"
+
+    if not api_key and provider != "lmstudio":
+        raise RuntimeError(
+            f"No API key for Browser Use (provider={provider}). "
+            f"Set BROWSER_USE_API_KEY or the matching provider key in .env."
+        )
+
+    base_url = os.getenv(
+        "BROWSER_USE_BASE_URL",
+        _BU_BASE_URLS.get(provider, _BU_BASE_URLS["groq"]),
+    )
+
+    logger.info(
+        "LLM factory (get_browser_use_llm): provider=%s  model=%s  base_url=%s",
+        provider, model, base_url,
+    )
+
+    return ChatOpenAI(
+        model=model,
+        temperature=temperature,
+        base_url=base_url,
+        api_key=api_key,
     )

@@ -8,10 +8,40 @@ You will receive:
 ## YOUR TASK
 Parse every Gherkin step and produce a JSON array of actions. Each action must specify:
 - "step": sequential step number (integer starting from 1)
-- "action": one of: navigate, click, type, assert, wait, scroll, select, hover, double_click, right_click, clear, submit, switch_frame, switch_window, accept_alert, dismiss_alert, upload_file
+- "action": one of: navigate, click, type, assert, wait, scroll, select, hover, double_click, right_click, clear, submit, switch_frame, switch_window, accept_alert, dismiss_alert, upload_file, solve_captcha, enter_otp
 - "target": human-readable description of the element (e.g., "login button", "email input field", "search bar")
 - "value": the value to use (URL for navigate, text for type, expected text for assert, etc.) — use empty string if not applicable
 - "description": brief explanation of what this step does
+- "complexity": one of: "standard", "file_upload", "captcha", "two_factor"
+
+## COMPLEXITY TAGGING RULES
+You MUST tag every action with the correct "complexity" value:
+- "file_upload" — if the step mentions: upload, attach, file, image, document, photo
+- "captcha" — if the step mentions: captcha, robot, verification image, prove you are human
+- "two_factor" — if the step mentions: 2fa, two factor, authenticator, verification code, OTP, SMS code
+- "standard" — everything else (the vast majority of steps)
+
+## CAPTCHA RULE (CRITICAL)
+If the page intelligence indicates captcha_present=true or captcha_type is not 'none',
+generate ONE single step for the entire captcha interaction:
+  {
+    "action": "solve_captcha",
+    "target": "captcha",
+    "complexity": "captcha",
+    "description": "Solve the captcha on the page using Browser Use"
+  }
+Never break captcha solving into separate click and type steps.
+The entire captcha interaction is handled by Browser Use as one unit.
+
+## 2FA / OTP RULE
+If the page intelligence indicates two_factor_present=true, generate ONE single step:
+  {
+    "action": "enter_otp",
+    "target": "OTP input field",
+    "complexity": "two_factor",
+    "description": "Enter the 2FA/OTP verification code"
+  }
+Never break 2FA handling into separate locate + type + submit steps.
 
 ## RULES
 1. ALWAYS start with a "navigate" action to the provided URL
@@ -38,13 +68,13 @@ Input URL: https://example.com/login
 
 Output:
 [
-  {"step": 1, "action": "navigate", "target": "url", "value": "https://example.com/login", "description": "Navigate to the login page"},
-  {"step": 2, "action": "wait", "target": "page_load", "value": "5", "description": "Wait for the login page to fully load"},
-  {"step": 3, "action": "type", "target": "email input field", "value": "user@example.com", "description": "Enter email address in the email field"},
-  {"step": 4, "action": "type", "target": "password input field", "value": "password123", "description": "Enter password in the password field"},
-  {"step": 5, "action": "click", "target": "login button", "value": "", "description": "Click the login/submit button"},
-  {"step": 6, "action": "wait", "target": "page_load", "value": "5", "description": "Wait for dashboard page to load after login"},
-  {"step": 7, "action": "assert", "target": "dashboard heading or welcome text", "value": "Welcome", "description": "Verify that the dashboard displays Welcome text"}
+  {"step": 1, "action": "navigate", "target": "url", "value": "https://example.com/login", "description": "Navigate to the login page", "complexity": "standard"},
+  {"step": 2, "action": "wait", "target": "page_load", "value": "5", "description": "Wait for the login page to fully load", "complexity": "standard"},
+  {"step": 3, "action": "type", "target": "email input field", "value": "user@example.com", "description": "Enter email address in the email field", "complexity": "standard"},
+  {"step": 4, "action": "type", "target": "password input field", "value": "password123", "description": "Enter password in the password field", "complexity": "standard"},
+  {"step": 5, "action": "click", "target": "login button", "value": "", "description": "Click the login/submit button", "complexity": "standard"},
+  {"step": 6, "action": "wait", "target": "page_load", "value": "5", "description": "Wait for dashboard page to load after login", "complexity": "standard"},
+  {"step": 7, "action": "assert", "target": "dashboard heading or welcome text", "value": "Welcome", "description": "Verify that the dashboard displays Welcome text", "complexity": "standard"}
 ]
 
 Now analyze the following Gherkin test case and produce the action plan JSON.
