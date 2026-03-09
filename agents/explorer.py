@@ -18,6 +18,7 @@ import os
 import re
 from datetime import datetime
 from typing import Any, Dict
+from selenium.webdriver.support.ui import WebDriverWait
 
 from langchain_core.messages import HumanMessage
 
@@ -39,7 +40,14 @@ def _load_system_prompt() -> str:
 
 _EXPLORER_PROMPT = _load_system_prompt()
 
-
+def wait_for_page_load(driver, timeout=20):
+    # Step 1: DOM ready
+    WebDriverWait(driver, timeout).until(
+        lambda d: d.execute_script("return document.readyState") == "complete"
+    )
+    # Step 2: For SPAs, wait for JS frameworks to finish rendering
+    import time
+    time.sleep(0.8)  # small intentional pause — SPAs need this, not negotiable
 def _default_intelligence() -> Dict[str, Any]:
     """Return a safe-default page_intelligence dict."""
     return {
@@ -103,8 +111,7 @@ def run_explorer(state: Dict[str, Any]) -> Dict[str, Any]:
         driver.get(url)
 
         # Wait for full page load
-        import time
-        time.sleep(3)
+        wait_for_page_load(driver, timeout=20)
 
         # Capture screenshot
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -134,7 +141,7 @@ def run_explorer(state: Dict[str, Any]) -> Dict[str, Any]:
         vision_llm = get_browser_use_llm()
 
         content_parts = [
-            {"type": "text", "text": f"{_EXPLORER_PROMPT}\n\nPage HTML (simplified):\n```html\n{cleaned_html[:12000]}\n```"},
+            {"type": "text", "text": f"{_EXPLORER_PROMPT}\n\nPage HTML (simplified):\n```html\n{cleaned_html}\n```"},
         ]
         if screenshot_b64:
             content_parts.insert(0, {
